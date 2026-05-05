@@ -1,0 +1,38 @@
+import { Router, Request, Response } from 'express';
+import { getDb } from '../db/database';
+
+const router = Router();
+
+// GET /users/:id — devuelve el perfil de un usuario
+// ⚠️ VULNERABILIDAD T08: IDOR — cualquier usuario puede ver el perfil de cualquier otro
+// FIX T08: verificar que req.user.id === parseInt(id) o que req.user.role === 'admin'
+router.get('/:id', (req: Request, res: Response) => {
+  const id = parseInt(req.params.id, 10);
+
+  if (isNaN(id)) {
+    res.status(400).json({ error: 'ID inválido' });
+    return;
+  }
+
+  const db = getDb();
+
+  // ⚠️ VULNERABILIDAD T08: no se verifica que el usuario autenticado
+  //    tenga permiso para ver el recurso con este ID.
+  // FIX:
+  //   const authUser = verifyToken(req.headers.authorization);
+  //   if (authUser.userId !== id && authUser.role !== 'admin') {
+  //     return res.status(403).json({ error: 'Acceso denegado' });
+  //   }
+  const user = db
+    .prepare('SELECT id, username, email, role FROM users WHERE id = ?')
+    .get(id) as { id: number; username: string; email: string; role: string } | undefined;
+
+  if (!user) {
+    res.status(404).json({ error: 'Usuario no encontrado' });
+    return;
+  }
+
+  res.json(user);
+});
+
+export default router;
