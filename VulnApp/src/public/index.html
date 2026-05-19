@@ -46,6 +46,21 @@
     .alert-error { background: #2d1214; border: 1px solid #da3633; color: #f85149; }
     .hidden { display: none; }
     .debug-panel { background: #1c1007; border: 1px solid #9e6a03; border-radius: 8px; padding: 1rem; margin-top: 2rem; font-family: monospace; font-size: 0.75rem; color: #f0883e; max-height: 200px; overflow-y: auto; }
+    .detail-container { background: #161b22; border: 1px solid #30363d; border-radius: 8px; overflow: hidden; max-width: 700px; }
+    .detail-container img { width: 100%; height: 280px; object-fit: cover; }
+    .detail-body { padding: 1.5rem; }
+    .detail-body h2 { color: #f0f6fc; margin-bottom: 0.5rem; }
+    .detail-body .price { color: #3fb950; font-size: 1.5rem; font-weight: bold; margin: 0.5rem 0; }
+    .detail-body .desc { color: #c9d1d9; margin: 1rem 0; line-height: 1.5; }
+    .detail-body .meta { color: #8b949e; font-size: 0.8rem; }
+    .detail-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    .profile-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.5rem; max-width: 400px; }
+    .profile-card h3 { color: #f0f6fc; margin-bottom: 1rem; }
+    .profile-card .field { margin-bottom: 0.7rem; }
+    .profile-card .field label { color: #8b949e; font-size: 0.8rem; display: block; }
+    .profile-card .field span { color: #c9d1d9; }
+    .back-link { color: #58a6ff; cursor: pointer; font-size: 0.85rem; margin-bottom: 1rem; display: inline-block; }
+    .back-link:hover { text-decoration: underline; }
     footer { text-align: center; color: #484f58; padding: 2rem; font-size: 0.8rem; border-top: 1px solid #21262d; }
     footer a { color: #f85149; }
   </style>
@@ -58,6 +73,7 @@
       <a href="#" onclick="showSection('comments')">Comentarios</a>
       <span id="auth-area">
         <a href="#" onclick="showSection('login')">Iniciar sesión</a>
+        <a href="#" onclick="showSection('register')">Registrarse</a>
       </span>
     </nav>
   </header>
@@ -106,6 +122,80 @@
       <button class="btn" onclick="addComment()">Enviar comentario</button>
     </section>
 
+    <!-- REGISTRO -->
+    <section id="section-register" class="hidden">
+      <div class="login-panel">
+        <h2 class="section-title">Crear cuenta</h2>
+        <div class="form-group">
+          <label>Usuario</label>
+          <input type="text" id="reg-user" placeholder="tu_usuario">
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <!-- ⚠️ VULNERABILIDAD T11: sin requisitos de complejidad, acepta "1" -->
+          <input type="password" id="reg-pass" placeholder="contraseña">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="reg-email" placeholder="tu@email.com">
+        </div>
+        <button class="btn" onclick="doRegister()">Registrarse</button>
+        <p style="color:#8b949e; font-size:0.8rem; margin-top:0.8rem;">¿Ya tienes cuenta? <a href="#" onclick="showSection('login')">Inicia sesión</a></p>
+      </div>
+    </section>
+
+    <!-- DETALLE COCHE -->
+    <section id="section-car-detail" class="hidden">
+      <a class="back-link" onclick="showSection('cars')">← Volver a coches</a>
+      <div class="detail-container">
+        <img id="detail-img" src="" alt="">
+        <div class="detail-body">
+          <h2 id="detail-name"></h2>
+          <div class="price" id="detail-price"></div>
+          <!-- ⚠️ VULNERABILIDAD T05: innerHTML sin sanitizar → XSS almacenado -->
+          <div class="desc" id="detail-desc"></div>
+          <div class="meta">Vendedor: <a href="#" id="detail-owner-link"><span id="detail-owner"></span></a> · <span id="detail-date"></span></div>
+          <div class="detail-actions" id="detail-actions"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- EDITAR COCHE -->
+    <section id="section-edit-car" class="hidden">
+      <a class="back-link" onclick="showSection('car-detail')">← Volver al detalle</a>
+      <div class="login-panel" style="max-width:500px;">
+        <h2 class="section-title">Editar coche</h2>
+        <!-- ⚠️ VULNERABILIDAD T09: formulario sin token CSRF -->
+        <!-- ⚠️ VULNERABILIDAD T08: IDOR — se puede editar cualquier coche cambiando el ID -->
+        <input type="hidden" id="edit-car-id">
+        <div class="form-group"><label>Nombre</label><input id="edit-car-name"></div>
+        <div class="form-group"><label>Descripción</label><textarea id="edit-car-desc"></textarea></div>
+        <div class="form-group"><label>URL imagen</label><input id="edit-car-img"></div>
+        <div class="form-group"><label>Precio (€)</label><input id="edit-car-price" type="number"></div>
+        <div style="display:flex; gap:0.5rem;">
+          <button class="btn" onclick="saveCarEdit()">Guardar cambios</button>
+          <button class="btn btn-danger" onclick="deleteCar()">Eliminar coche</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PERFIL USUARIO -->
+    <section id="section-profile" class="hidden">
+      <a class="back-link" onclick="showSection('cars')">← Volver</a>
+      <div class="profile-card">
+        <h3>👤 Perfil de usuario</h3>
+        <!-- ⚠️ VULNERABILIDAD T08: IDOR — enumerar IDs para ver perfiles ajenos -->
+        <div class="field"><label>ID</label><span id="profile-id"></span></div>
+        <div class="field"><label>Usuario</label><span id="profile-username"></span></div>
+        <div class="field"><label>Email</label><span id="profile-email"></span></div>
+        <div class="field"><label>Rol</label><span id="profile-role"></span></div>
+      </div>
+      <div style="margin-top:1rem;">
+        <button class="btn" onclick="loadProfile(parseInt(document.getElementById('profile-id').textContent) - 1)">← Anterior</button>
+        <button class="btn" onclick="loadProfile(parseInt(document.getElementById('profile-id').textContent) + 1)">Siguiente →</button>
+      </div>
+    </section>
+
     <!-- DEBUG -->
     <div class="debug-panel hidden" id="debug-panel">
       <strong>🔓 Panel de debug (admin)</strong><br>
@@ -121,6 +211,7 @@
     const API = window.location.origin;
     let token = null;
     let currentUser = null;
+    let currentCarId = null;
 
     // ── Sections ──
     function showSection(name) {
@@ -134,6 +225,7 @@
     // ── Alert ──
     function showAlert(msg, type) {
       const c = document.getElementById('alert-container');
+      // ⚠️ VULNERABILIDAD T05: innerHTML con msg que puede venir de la URL
       c.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
       setTimeout(() => c.innerHTML = '', 4000);
     }
@@ -152,7 +244,39 @@
         if (!r.ok) { showAlert(data.error, 'error'); return; }
         token = data.token;
         currentUser = data.user;
+        // ⚠️ VULNERABILIDAD T07: token almacenado en localStorage (accesible desde XSS)
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(currentUser));
+        updateAuthUI();
+        showAlert(`Bienvenido, ${currentUser.username}!`, 'success');
+        showSection('cars');
+      } catch (e) { showAlert('Error de conexión', 'error'); }
+    }
+
+    async function doRegister() {
+      const username = document.getElementById('reg-user').value;
+      const password = document.getElementById('reg-pass').value;
+      const email = document.getElementById('reg-email').value;
+      // ⚠️ VULNERABILIDAD T11: sin validación de complejidad de contraseña
+      if (!username || !password) { showAlert('Usuario y contraseña requeridos', 'error'); return; }
+      try {
+        const r = await fetch(API + '/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, email })
+        });
+        const data = await r.json();
+        if (r.ok) {
+          showAlert('Cuenta creada. Ahora inicia sesión.', 'success');
+          showSection('login');
+        } else { showAlert(data.error, 'error'); }
+      } catch (e) { showAlert('Error de conexión', 'error'); }
+    }
+
+    function updateAuthUI() {
+      if (currentUser) {
         document.getElementById('auth-area').innerHTML = `
+          <a href="#" onclick="loadProfile(${currentUser.id})">Mi perfil</a>
           <span class="user-badge ${currentUser.role === 'admin' ? 'admin-badge' : ''}">${currentUser.username} (${currentUser.role})</span>
           <button onclick="doLogout()">Salir</button>
         `;
@@ -161,14 +285,17 @@
           document.getElementById('debug-panel').classList.remove('hidden');
           loadDebug();
         }
-        showAlert(`Bienvenido, ${currentUser.username}!`, 'success');
-        showSection('cars');
-      } catch (e) { showAlert('Error de conexión', 'error'); }
+      }
     }
 
     function doLogout() {
       token = null; currentUser = null;
-      document.getElementById('auth-area').innerHTML = '<a href="#" onclick="showSection(\'login\')">Iniciar sesión</a>';
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      document.getElementById('auth-area').innerHTML = `
+        <a href="#" onclick="showSection('login')">Iniciar sesión</a>
+        <a href="#" onclick="showSection('register')">Registrarse</a>
+      `;
       document.getElementById('add-car-form').classList.add('hidden');
       document.getElementById('debug-panel').classList.add('hidden');
       showAlert('Sesión cerrada', 'success');
@@ -179,8 +306,9 @@
       const r = await fetch(API + '/products');
       const cars = await r.json();
       const grid = document.getElementById('cars-grid');
+      // ⚠️ VULNERABILIDAD T05: XSS — name y description se insertan con innerHTML sin sanitizar
       grid.innerHTML = cars.map(c => `
-        <div class="card">
+        <div class="card" onclick="viewCar(${c.id})" style="cursor:pointer">
           <img src="${c.image_url}" alt="${c.name}" onerror="this.src='https://via.placeholder.com/400x180/161b22/8b949e?text=Sin+imagen'">
           <div class="card-body">
             <h3>${c.name}</h3>
@@ -190,6 +318,80 @@
           </div>
         </div>
       `).join('');
+    }
+
+    async function viewCar(id) {
+      const r = await fetch(API + '/products/' + id);
+      if (!r.ok) { showAlert('Coche no encontrado', 'error'); return; }
+      const car = await r.json();
+      currentCarId = id;
+
+      document.getElementById('detail-img').src = car.image_url;
+      document.getElementById('detail-name').textContent = car.name;
+      document.getElementById('detail-price').textContent = Number(car.price).toLocaleString('es-ES') + ' €';
+      // ⚠️ VULNERABILIDAD T05: innerHTML sin sanitizar → XSS ejecuta en vista detalle
+      document.getElementById('detail-desc').innerHTML = car.description;
+      document.getElementById('detail-owner').textContent = car.owner;
+      document.getElementById('detail-owner-link').onclick = () => loadProfile(car.owner_id);
+      document.getElementById('detail-date').textContent = car.created_at || '';
+
+      // Mostrar botones de edición/borrado (⚠️ T08: sin verificar owner en frontend)
+      const actions = document.getElementById('detail-actions');
+      if (currentUser) {
+        actions.innerHTML = `
+          <button class="btn" onclick="editCar(${id})">✏️ Editar</button>
+          <button class="btn btn-danger" onclick="deleteCar(${id})">🗑️ Eliminar</button>
+        `;
+      } else {
+        actions.innerHTML = '<span style="color:#8b949e;font-size:0.8rem;">Inicia sesión para editar</span>';
+      }
+
+      showSection('car-detail');
+    }
+
+    function editCar(id) {
+      // ⚠️ VULNERABILIDAD T08: IDOR — cargamos el form para cualquier coche, no verificamos propiedad
+      fetch(API + '/products/' + id).then(r => r.json()).then(car => {
+        document.getElementById('edit-car-id').value = id;
+        document.getElementById('edit-car-name').value = car.name;
+        document.getElementById('edit-car-desc').value = car.description;
+        document.getElementById('edit-car-img').value = car.image_url;
+        document.getElementById('edit-car-price').value = car.price;
+        showSection('edit-car');
+      });
+    }
+
+    async function saveCarEdit() {
+      if (!token) { showAlert('Debes iniciar sesión', 'error'); return; }
+      const id = document.getElementById('edit-car-id').value;
+      const body = {
+        name: document.getElementById('edit-car-name').value,
+        description: document.getElementById('edit-car-desc').value,
+        image_url: document.getElementById('edit-car-img').value,
+        price: parseFloat(document.getElementById('edit-car-price').value)
+      };
+      // ⚠️ VULNERABILIDAD T08: IDOR — PUT a cualquier ID sin verificar propiedad
+      // ⚠️ VULNERABILIDAD T09: sin token CSRF en la request
+      const r = await fetch(API + '/products/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(body)
+      });
+      const data = await r.json();
+      if (r.ok) { showAlert('Coche actualizado', 'success'); viewCar(id); }
+      else { showAlert(data.error, 'error'); }
+    }
+
+    async function deleteCar(id) {
+      if (!token) { showAlert('Debes iniciar sesión', 'error'); return; }
+      if (!confirm('¿Estás seguro de eliminar este coche?')) return;
+      // ⚠️ VULNERABILIDAD T08: cualquier usuario puede borrar cualquier coche
+      const r = await fetch(API + '/products/' + (id || document.getElementById('edit-car-id').value), {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (r.ok) { showAlert('Coche eliminado', 'success'); showSection('cars'); }
+      else { const d = await r.json(); showAlert(d.error, 'error'); }
     }
 
     async function addCar() {
@@ -208,6 +410,19 @@
       const data = await r.json();
       if (r.ok) { showAlert('Coche publicado!', 'success'); loadCars(); }
       else { showAlert(data.error, 'error'); }
+    }
+
+    // ── User Profile ──
+    async function loadProfile(id) {
+      // ⚠️ VULNERABILIDAD T08: IDOR — cualquier ID se puede consultar sin restricción
+      const r = await fetch(API + '/users/' + id);
+      if (!r.ok) { showAlert('Usuario no encontrado', 'error'); return; }
+      const user = await r.json();
+      document.getElementById('profile-id').textContent = user.id;
+      document.getElementById('profile-username').textContent = user.username;
+      document.getElementById('profile-email').textContent = user.email || '(no especificado)';
+      document.getElementById('profile-role').textContent = user.role;
+      showSection('profile');
     }
 
     // ── Comments ──
@@ -247,6 +462,21 @@
     }
 
     // ── Init ──
+    // ⚠️ VULNERABILIDAD T07: restaurar sesión desde localStorage (si XSS → robo de sesión)
+    const savedToken = localStorage.getItem('token');
+    const savedUser = localStorage.getItem('user');
+    if (savedToken && savedUser) {
+      token = savedToken;
+      currentUser = JSON.parse(savedUser);
+      updateAuthUI();
+    }
+
+    // ⚠️ VULNERABILIDAD T05 DOM-XSS: parámetro ?msg= se renderiza sin sanitizar
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('msg')) {
+      showAlert(params.get('msg'), 'success');
+    }
+
     showSection('cars');
   </script>
 </body>
