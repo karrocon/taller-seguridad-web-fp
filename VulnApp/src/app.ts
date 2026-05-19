@@ -1,9 +1,11 @@
 import express from 'express';
+import path from 'path';
 import { initDb } from './db/database';
 import authRouter from './routes/auth';
 import commentsRouter from './routes/comments';
 import usersRouter from './routes/users';
 import debugRouter from './routes/debug';
+import productsRouter from './routes/products';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,21 +25,30 @@ app.use((_req, res, next) => {
   next();
 });
 
-// Rutas
+// Frontend estático
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Rutas API
 app.use('/auth', authRouter);
 app.use('/comments', commentsRouter);
 app.use('/users', usersRouter);
 app.use('/debug', debugRouter);
+app.use('/products', productsRouter);
 
-app.get('/', (_req, res) => {
+app.get('/api', (_req, res) => {
   res.json({
-    app: 'VulnApp',
+    app: 'VulnMotors',
     version: '1.0.0',
     description: 'App vulnerable para el taller de seguridad web',
     endpoints: [
       'POST /auth/login',
       'POST /auth/register',
       'GET  /users/:id',
+      'GET  /products',
+      'GET  /products/:id',
+      'POST /products',
+      'PUT  /products/:id',
+      'DELETE /products/:id',
       'GET  /comments',
       'POST /comments',
       'GET  /debug',

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VulnMotors — Compra-venta de coches</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
+    header { background: #161b22; border-bottom: 1px solid #30363d; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+    header h1 { color: #58a6ff; font-size: 1.4rem; }
+    header h1 span { color: #f85149; }
+    nav { display: flex; gap: 1rem; align-items: center; }
+    nav a, nav button { color: #8b949e; text-decoration: none; cursor: pointer; background: none; border: none; font-size: 0.9rem; }
+    nav a:hover, nav button:hover { color: #58a6ff; }
+    .user-badge { background: #238636; color: #fff; padding: 0.3rem 0.7rem; border-radius: 12px; font-size: 0.8rem; }
+    .admin-badge { background: #f85149; }
+    main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    .section-title { color: #f0f6fc; margin-bottom: 1rem; font-size: 1.3rem; border-bottom: 1px solid #30363d; padding-bottom: 0.5rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 3rem; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; overflow: hidden; transition: border-color 0.2s; }
+    .card:hover { border-color: #58a6ff; }
+    .card img { width: 100%; height: 180px; object-fit: cover; }
+    .card-body { padding: 1rem; }
+    .card-body h3 { color: #f0f6fc; font-size: 1rem; margin-bottom: 0.4rem; }
+    .card-body p { color: #8b949e; font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .card-body .price { color: #3fb950; font-size: 1.1rem; font-weight: bold; }
+    .card-body .owner { color: #8b949e; font-size: 0.75rem; }
+    .comments-section { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; }
+    .comment { border-bottom: 1px solid #21262d; padding: 0.8rem 0; }
+    .comment:last-child { border-bottom: none; }
+    .comment .author { color: #58a6ff; font-weight: 600; font-size: 0.85rem; }
+    .comment .text { color: #c9d1d9; margin-top: 0.3rem; font-size: 0.9rem; }
+    .comment .date { color: #484f58; font-size: 0.75rem; margin-top: 0.2rem; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; color: #8b949e; font-size: 0.85rem; margin-bottom: 0.3rem; }
+    .form-group input, .form-group textarea { width: 100%; padding: 0.6rem; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; font-size: 0.9rem; }
+    .form-group textarea { resize: vertical; min-height: 60px; }
+    .btn { background: #238636; color: #fff; border: none; padding: 0.6rem 1.2rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+    .btn:hover { background: #2ea043; }
+    .btn-danger { background: #da3633; }
+    .btn-danger:hover { background: #f85149; }
+    .login-panel { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; max-width: 400px; }
+    .alert { padding: 0.8rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.85rem; }
+    .alert-success { background: #0d2818; border: 1px solid #238636; color: #3fb950; }
+    .alert-error { background: #2d1214; border: 1px solid #da3633; color: #f85149; }
+    .hidden { display: none; }
+    .debug-panel { background: #1c1007; border: 1px solid #9e6a03; border-radius: 8px; padding: 1rem; margin-top: 2rem; font-family: monospace; font-size: 0.75rem; color: #f0883e; max-height: 200px; overflow-y: auto; }
+    footer { text-align: center; color: #484f58; padding: 2rem; font-size: 0.8rem; border-top: 1px solid #21262d; }
+    footer a { color: #f85149; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🚗 Vuln<span>Motors</span></h1>
+    <nav>
+      <a href="#" onclick="showSection('cars')">Coches</a>
+      <a href="#" onclick="showSection('comments')">Comentarios</a>
+      <span id="auth-area">
+        <a href="#" onclick="showSection('login')">Iniciar sesión</a>
+      </span>
+    </nav>
+  </header>
+
+  <main>
+    <div id="alert-container"></div>
+
+    <!-- LOGIN -->
+    <section id="section-login" class="hidden">
+      <div class="login-panel">
+        <h2 class="section-title">Iniciar sesión</h2>
+        <div class="form-group">
+          <label>Usuario</label>
+          <input type="text" id="login-user" placeholder="alice">
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" id="login-pass" placeholder="password123">
+        </div>
+        <button class="btn" onclick="doLogin()">Entrar</button>
+      </div>
+    </section>
+
+    <!-- COCHES -->
+    <section id="section-cars">
+      <h2 class="section-title">Coches en venta</h2>
+      <div class="grid" id="cars-grid"></div>
+
+      <div id="add-car-form" class="hidden">
+        <h3 class="section-title">Publicar coche</h3>
+        <div class="form-group"><label>Nombre</label><input id="car-name" placeholder="Seat León 2022"></div>
+        <div class="form-group"><label>Descripción</label><textarea id="car-desc" placeholder="Gasolina 150 CV · 20.000 km"></textarea></div>
+        <div class="form-group"><label>URL imagen</label><input id="car-img" placeholder="https://..."></div>
+        <div class="form-group"><label>Precio (€)</label><input id="car-price" type="number" placeholder="18000"></div>
+        <button class="btn" onclick="addCar()">Publicar</button>
+      </div>
+    </section>
+
+    <!-- COMENTARIOS -->
+    <section id="section-comments" class="hidden">
+      <h2 class="section-title">Comentarios</h2>
+      <div class="comments-section" id="comments-list"></div>
+      <div class="form-group" style="margin-top:1rem;">
+        <textarea id="comment-input" placeholder="Escribe un comentario... (se acepta HTML 😈)"></textarea>
+      </div>
+      <button class="btn" onclick="addComment()">Enviar comentario</button>
+    </section>
+
+    <!-- DEBUG -->
+    <div class="debug-panel hidden" id="debug-panel">
+      <strong>🔓 Panel de debug (admin)</strong><br>
+      <pre id="debug-content"></pre>
+    </div>
+  </main>
+
+  <footer>
+    ⚠️ App vulnerable intencionalmente — <a href="https://owasp.org/www-project-top-ten/">OWASP Top 10</a> · Taller de Seguridad Web FP
+  </footer>
+
+  <script>
+    const API = window.location.origin;
+    let token = null;
+    let currentUser = null;
+
+    // ── Sections ──
+    function showSection(name) {
+      document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+      const el = document.getElementById('section-' + name);
+      if (el) el.classList.remove('hidden');
+      if (name === 'cars') loadCars();
+      if (name === 'comments') loadComments();
+    }
+
+    // ── Alert ──
+    function showAlert(msg, type) {
+      const c = document.getElementById('alert-container');
+      c.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+      setTimeout(() => c.innerHTML = '', 4000);
+    }
+
+    // ── Auth ──
+    async function doLogin() {
+      const username = document.getElementById('login-user').value;
+      const password = document.getElementById('login-pass').value;
+      try {
+        const r = await fetch(API + '/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await r.json();
+        if (!r.ok) { showAlert(data.error, 'error'); return; }
+        token = data.token;
+        currentUser = data.user;
+        document.getElementById('auth-area').innerHTML = `
+          <span class="user-badge ${currentUser.role === 'admin' ? 'admin-badge' : ''}">${currentUser.username} (${currentUser.role})</span>
+          <button onclick="doLogout()">Salir</button>
+        `;
+        document.getElementById('add-car-form').classList.remove('hidden');
+        if (currentUser.role === 'admin') {
+          document.getElementById('debug-panel').classList.remove('hidden');
+          loadDebug();
+        }
+        showAlert(`Bienvenido, ${currentUser.username}!`, 'success');
+        showSection('cars');
+      } catch (e) { showAlert('Error de conexión', 'error'); }
+    }
+
+    function doLogout() {
+      token = null; currentUser = null;
+      document.getElementById('auth-area').innerHTML = '<a href="#" onclick="showSection(\'login\')">Iniciar sesión</a>';
+      document.getElementById('add-car-form').classList.add('hidden');
+      document.getElementById('debug-panel').classList.add('hidden');
+      showAlert('Sesión cerrada', 'success');
+    }
+
+    // ── Cars ──
+    async function loadCars() {
+      const r = await fetch(API + '/products');
+      const cars = await r.json();
+      const grid = document.getElementById('cars-grid');
+      grid.innerHTML = cars.map(c => `
+        <div class="card">
+          <img src="${c.image_url}" alt="${c.name}" onerror="this.src='https://via.placeholder.com/400x180/161b22/8b949e?text=Sin+imagen'">
+          <div class="card-body">
+            <h3>${c.name}</h3>
+            <p>${c.description}</p>
+            <div class="price">${Number(c.price).toLocaleString('es-ES')} €</div>
+            <div class="owner">Vendedor: ${c.owner}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function addCar() {
+      if (!token) { showAlert('Debes iniciar sesión', 'error'); return; }
+      const body = {
+        name: document.getElementById('car-name').value,
+        description: document.getElementById('car-desc').value,
+        image_url: document.getElementById('car-img').value,
+        price: parseFloat(document.getElementById('car-price').value)
+      };
+      const r = await fetch(API + '/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(body)
+      });
+      const data = await r.json();
+      if (r.ok) { showAlert('Coche publicado!', 'success'); loadCars(); }
+      else { showAlert(data.error, 'error'); }
+    }
+
+    // ── Comments ──
+    async function loadComments() {
+      const r = await fetch(API + '/comments');
+      const comments = await r.json();
+      const el = document.getElementById('comments-list');
+      // ⚠️ VULNERABILIDAD T05: innerHTML sin sanitizar — XSS almacenado se ejecuta aquí
+      el.innerHTML = comments.map(c => `
+        <div class="comment">
+          <span class="author">${c.username}</span>
+          <div class="text">${c.content}</div>
+          <div class="date">${c.created_at || ''}</div>
+        </div>
+      `).join('') || '<p style="color:#484f58">No hay comentarios aún.</p>';
+    }
+
+    async function addComment() {
+      const content = document.getElementById('comment-input').value;
+      if (!content) return;
+      const userId = currentUser ? currentUser.id : 1;
+      await fetch(API + '/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, content })
+      });
+      document.getElementById('comment-input').value = '';
+      showAlert('Comentario enviado', 'success');
+      loadComments();
+    }
+
+    // ── Debug ──
+    async function loadDebug() {
+      const r = await fetch(API + '/debug');
+      const data = await r.json();
+      document.getElementById('debug-content').textContent = JSON.stringify(data, null, 2).substring(0, 2000);
+    }
+
+    // ── Init ──
+    showSection('cars');
+  </script>
+</body>
+</html>
