@@ -8,37 +8,39 @@ const router = Router();
 // FIX T03: proteger con middleware de autenticación
 // FIX T06: eliminar este endpoint en producción o aplicar una allowlist estricta de comandos
 
-const ALLOWED_CMDS = new Set(['uptime', 'date', 'hostname']);
+// FIX (comentado para el taller): usar allowlist
+// const ALLOWED_CMDS = new Set(['uptime', 'date', 'hostname']);
 
 router.get('/', (req: Request, res: Response) => {
   const cmd = req.query.cmd as string | undefined;
 
-  // ⚠️ VERSIÓN VULNERABLE (comentada para referencia del alumno):
-  // if (cmd) {
-  //   try {
-  //     const output = execSync(cmd).toString();        // ← COMMAND INJECTION
-  //     return res.json({ output });
-  //   } catch (e) {
-  //     return res.status(500).json({ error: String(e) });
-  //   }
-  // }
-
-  // Starter: sin allowlist (vulnerable)
-  // Descomentar el bloque anterior y comentar este para ver el ataque en acción.
+  // ⚠️ VERSIÓN VULNERABLE — Command Injection directo
   if (cmd) {
-    if (!ALLOWED_CMDS.has(cmd)) {
-      res.status(400).json({ error: `Comando no permitido. Permitidos: ${[...ALLOWED_CMDS].join(', ')}` });
-      return;
-    }
     try {
-      const output = execSync(cmd).toString();
+      const output = execSync(cmd, { timeout: 5000, maxBuffer: 1024 * 512 }).toString();
       res.json({ output });
       return;
-    } catch {
-      res.status(500).json({ error: 'Error al ejecutar el comando' });
+    } catch (e: any) {
+      // Devuelve stderr también (útil para el alumno)
+      const stderr = e.stderr ? e.stderr.toString() : '';
+      const stdout = e.stdout ? e.stdout.toString() : '';
+      res.status(500).json({ error: e.message, stderr, stdout });
       return;
     }
   }
+
+  // FIX T06 (para referencia del alumno):
+  // if (cmd) {
+  //   if (!ALLOWED_CMDS.has(cmd)) {
+  //     res.status(400).json({ error: `Comando no permitido` });
+  //     return;
+  //   }
+  //   execFile(cmd, [], (err, stdout) => {
+  //     if (err) return res.status(500).json({ error: err.message });
+  //     res.json({ output: stdout });
+  //   });
+  //   return;
+  // }
 
   // ⚠️ VULNERABILIDAD T06: expone variables de entorno (puede incluir secretos)
   // FIX T06: eliminar este endpoint o nunca exponer process.env
