@@ -1,7 +1,11 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 
-const DB_PATH = path.join(__dirname, '../../vuln.db');
+// En Azure App Service el filesystem /home es NFS → SQLite no puede hacer locking.
+// Usamos /tmp (disco local efímero) que soporta locking correctamente.
+const DB_PATH = process.env.WEBSITE_INSTANCE_ID
+  ? '/tmp/vuln.db'
+  : path.join(__dirname, '../../vuln.db');
 
 let db: Database.Database;
 
