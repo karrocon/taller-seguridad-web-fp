@@ -71,6 +71,9 @@
     <nav>
       <a href="#" onclick="showSection('cars')">Coches</a>
       <a href="#" onclick="showSection('comments')">Comentarios</a>
+      <a href="#" onclick="showSection('files')">Archivos</a>
+      <a href="#" onclick="showSection('cookies')">🍪 Cookies</a>
+      <a href="attacker.html" style="color:#f85149;" title="Portal de ataques">🏴‍☠️ Attack Lab</a>
       <span id="auth-area">
         <a href="#" onclick="showSection('login')">Iniciar sesión</a>
         <a href="#" onclick="showSection('register')">Registrarse</a>
@@ -196,6 +199,55 @@
       </div>
     </section>
 
+    <!-- ARCHIVOS (Path Traversal demo) -->
+    <section id="section-files" class="hidden">
+      <h2 class="section-title">📁 Archivos públicos</h2>
+      <p style="color:#8b949e; margin-bottom:1rem;">Descarga catálogos y documentos. <span style="color:#f85149;">(⚠️ ¿Qué pasa si cambias la ruta?)</span></p>
+      <div id="files-list" style="background:#161b22; border:1px solid #30363d; border-radius:8px; padding:1rem; margin-bottom:1rem;"></div>
+      <div class="form-group">
+        <label>Ruta del archivo</label>
+        <input id="file-path-input" placeholder="catalogo.txt">
+      </div>
+      <button class="btn" onclick="fetchFile()">Descargar</button>
+      <pre id="file-content" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:1rem; margin-top:1rem; color:#c9d1d9; white-space:pre-wrap; max-height:300px; overflow-y:auto;"></pre>
+    </section>
+
+    <!-- COOKIES (Session demo) -->
+    <section id="section-cookies" class="hidden">
+      <h2 class="section-title">🍪 Demo de Cookies</h2>
+      <p style="color:#8b949e; margin-bottom:1rem;">
+        Login basado en cookies. Compara las flags en DevTools → Application → Cookies.
+      </p>
+      <div class="login-panel" style="max-width:500px;">
+        <div class="form-group">
+          <label>Usuario</label>
+          <input type="text" id="cookie-login-user" placeholder="alice">
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" id="cookie-login-pass" placeholder="password123">
+        </div>
+        <button class="btn" onclick="doCookieLogin()">Login con Cookie</button>
+        <button class="btn btn-danger" onclick="doCookieLogout()" style="margin-left:0.5rem;">Logout Cookie</button>
+      </div>
+      <div style="margin-top:1rem; background:#161b22; border:1px solid #30363d; border-radius:8px; padding:1rem;">
+        <h3 style="color:#f0f6fc; font-size:1rem; margin-bottom:0.5rem;">Estado de cookies</h3>
+        <pre id="cookie-display" style="color:#f0883e; font-size:0.85rem;">document.cookie = (carga la página para ver)</pre>
+        <button class="btn" onclick="readCookies()" style="margin-top:0.5rem; background:#58a6ff;">Leer document.cookie</button>
+        <button class="btn" onclick="testSessionMe()" style="margin-top:0.5rem;">Test /session/me</button>
+      </div>
+      <div id="cookie-result" style="margin-top:1rem; background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:1rem; color:#c9d1d9; font-size:0.85rem;"></div>
+      <div style="margin-top:1rem; background:#1c1007; border:1px solid #9e6a03; border-radius:8px; padding:1rem;">
+        <strong style="color:#f0883e;">📝 Ejercicio:</strong>
+        <ol style="color:#c9d1d9; font-size:0.85rem; margin-top:0.5rem;">
+          <li>Haz login con cookie → inspecciona en DevTools las flags</li>
+          <li>Pulsa "Leer document.cookie" → ¿puedes ver la cookie session? (si no hay HttpOnly sí)</li>
+          <li>Abre <a href="attacker.html" target="_blank" style="color:#58a6ff;">attacker.html</a> en otra pestaña → CSRF demo</li>
+          <li>Con VULN_COOKIES=0 repite → el navegador bloquea el envío cross-site</li>
+        </ol>
+      </div>
+    </section>
+
     <!-- DEBUG -->
     <div class="debug-panel hidden" id="debug-panel">
       <strong>🔓 Panel de debug (admin)</strong><br>
@@ -220,6 +272,7 @@
       if (el) el.classList.remove('hidden');
       if (name === 'cars') loadCars();
       if (name === 'comments') loadComments();
+      if (name === 'files') loadFiles();
     }
 
     // ── Alert ──
@@ -414,8 +467,10 @@
 
     // ── User Profile ──
     async function loadProfile(id) {
-      // ⚠️ VULNERABILIDAD T08: IDOR — cualquier ID se puede consultar sin restricción
-      const r = await fetch(API + '/users/' + id);
+      // ⚠️ VULNERABILIDAD T08: IDOR — cualquier ID se puede consultar
+      const headers = {};
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      const r = await fetch(API + '/users/' + id, { headers });
       if (!r.ok) { showAlert('Usuario no encontrado', 'error'); return; }
       const user = await r.json();
       document.getElementById('profile-id').textContent = user.id;
@@ -452,6 +507,87 @@
       document.getElementById('comment-input').value = '';
       showAlert('Comentario enviado', 'success');
       loadComments();
+    }
+
+    // ── Files (Path Traversal) ──
+    async function loadFiles() {
+      const r = await fetch(API + '/files');
+      const data = await r.json();
+      const el = document.getElementById('files-list');
+      if (data.files && data.files.length) {
+        el.innerHTML = '<strong style="color:#8b949e;">Archivos disponibles:</strong><br>' +
+          data.files.map(f => `<a href="#" onclick="document.getElementById('file-path-input').value='${f}'; fetchFile(); return false;" style="color:#58a6ff;">${f}</a>`).join(' · ');
+      } else {
+        el.innerHTML = '<span style="color:#484f58;">No hay archivos</span>';
+      }
+    }
+
+    async function fetchFile() {
+      const path = document.getElementById('file-path-input').value;
+      if (!path) return;
+      const pre = document.getElementById('file-content');
+      try {
+        const r = await fetch(API + '/files?path=' + encodeURIComponent(path));
+        const contentType = r.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await r.json();
+          pre.textContent = JSON.stringify(data, null, 2);
+        } else {
+          pre.textContent = await r.text();
+        }
+      } catch (e) {
+        pre.textContent = 'Error: ' + e.message;
+      }
+    }
+
+    // ── Cookies (Session demo) ──
+    async function doCookieLogin() {
+      const username = document.getElementById('cookie-login-user').value;
+      const password = document.getElementById('cookie-login-pass').value;
+      try {
+        const r = await fetch(API + '/session/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ username, password })
+        });
+        const data = await r.json();
+        if (r.ok) {
+          showAlert('Cookie de sesión establecida — inspecciona en DevTools', 'success');
+          document.getElementById('cookie-result').textContent = JSON.stringify(data, null, 2);
+        } else {
+          showAlert(data.error, 'error');
+        }
+      } catch (e) { showAlert('Error de conexión', 'error'); }
+    }
+
+    async function doCookieLogout() {
+      await fetch(API + '/session/logout', { method: 'POST', credentials: 'include' });
+      showAlert('Cookie eliminada', 'success');
+      document.getElementById('cookie-result').textContent = '';
+    }
+
+    function readCookies() {
+      const display = document.getElementById('cookie-display');
+      const cookies = document.cookie;
+      if (cookies) {
+        display.textContent = 'document.cookie = "' + cookies + '"\n\n⚠️ ¡La cookie es accesible desde JS! (falta HttpOnly)';
+        display.style.color = '#f85149';
+      } else {
+        display.textContent = 'document.cookie = ""\n\n✅ No hay cookies legibles (HttpOnly activo, o no hay sesión)';
+        display.style.color = '#3fb950';
+      }
+    }
+
+    async function testSessionMe() {
+      try {
+        const r = await fetch(API + '/session/me', { credentials: 'include' });
+        const data = await r.json();
+        document.getElementById('cookie-result').textContent =
+          (r.ok ? '✅ ' : '❌ ') + JSON.stringify(data, null, 2);
+      } catch (e) {
+        document.getElementById('cookie-result').textContent = 'Error: ' + e.message;
+      }
     }
 
     // ── Debug ──

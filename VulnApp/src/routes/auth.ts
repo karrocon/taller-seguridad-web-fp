@@ -1,18 +1,16 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/database';
-
-// ⚠️ VULNERABILIDAD T07: clave JWT hardcodeada y débil
-// FIX T07: mover a process.env.JWT_SECRET con valor largo y aleatorio
-// FIX T02: mover al archivo .env
-const JWT_SECRET = 'secret';
-
+import { vulns } from '../config/vulns';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
 const router = Router();
 
-// ⚠️ VULNERABILIDAD T04: SQL Injection en el login
-// La query concatena directamente el input del usuario sin sanitizar.
-// FIX T04: usar prepared statements — db.prepare('... WHERE username = ?').get(username)
+// JWT secret: débil si VULN_JWT_WEAK, fuerte si parcheado
+const JWT_SECRET = vulns.JWT_WEAK
+  ? 'secret'
+  : (process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex'));
+
 router.post('/login', (req: Request, res: Response) => {
   const { username, password } = req.body as { username: string; password: string };
 
@@ -23,16 +21,22 @@ router.post('/login', (req: Request, res: Response) => {
 
   const db = getDb();
 
-  // ⚠️ SQL INJECTION — VULNERABLE A PROPÓSITO
-  // Payload de ejemplo: username = "' OR 1=1 --"
-  const query = `SELECT * FROM users WHERE username='${username}' AND password='${password}'`;
-
   let user: { id: number; username: string; role: string } | undefined;
-  try {
-    user = db.prepare(query).get() as typeof user;
-  } catch {
-    res.status(500).json({ error: 'Error de base de datos' });
-    return;
+
+  if (vulns.SQLI) {
+    // ⚠️ VULNERABLE: SQL Injection — concatenación directa
+    // Payload: username = "' OR 1=1 --"
+    const query = `SELECT * FROM users WHERE username='${username}' AND password='${password}'`;
+    try {
+      user = db.prepare(query).get() as typeof user;
+    } catch {
+      res.status(500).json({ error: 'Error de base de datos' });
+      return;
+    }
+  } else {
+    // ✅ PARCHEADO: prepared statement
+    user = db.prepare('SELECT * FROM users WHERE username = ? AND password = ?')
+      .get(username, password) as typeof user;
   }
 
   if (!user) {
@@ -40,8 +44,7 @@ router.post('/login', (req: Request, res: Response) => {
     return;
   }
 
-  // ⚠️ VULNERABILIDAD T07: algoritmo HS256 con clave débil
-  // ⚠️ No se valida el algoritmo en el middleware — acepta alg:none
+  // JWT: sin restricción de algoritmo si VULN_JWT_WEAK
   const token = jwt.sign(
     { userId: user.id, username: user.username, role: user.role },
     JWT_SECRET,
@@ -65,12 +68,17 @@ router.post('/register', (req: Request, res: Response) => {
 
   const db = getDb();
 
-  // ⚠️ VULNERABILIDAD T11: contraseña almacenada en plain text
-  // FIX T11: const hash = await bcrypt.hash(password, 12); ... INSERT hash
+  // Contraseña: plain text si VULN_PLAINTEXT, hash si parcheado
+  let storedPassword = password;
+  if (!vulns.PLAINTEXT) {
+    // ✅ PARCHEADO: hash simple (en producción real usar bcrypt)
+    storedPassword = crypto.createHash('sha256').update(password).digest('hex');
+  }
+
   try {
     db.prepare('INSERT INTO users (username, password, email) VALUES (?, ?, ?)').run(
       username,
-      password, // ← plain text
+      storedPassword,
       email ?? null
     );
   } catch {

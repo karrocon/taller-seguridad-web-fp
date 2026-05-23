@@ -1,56 +1,60 @@
 import { Router, Request, Response } from 'express';
 import { execSync } from 'child_process';
+import { vulns } from '../config/vulns';
 
 const router = Router();
 
-// ⚠️ VULNERABILIDAD T03/T06: endpoint de depuración expuesto sin autenticación
-// ⚠️ VULNERABILIDAD T06: Command Injection — ejecuta el comando del parámetro ?cmd=
-// FIX T03: proteger con middleware de autenticación
-// FIX T06: eliminar este endpoint en producción o aplicar una allowlist estricta de comandos
-
-// FIX (comentado para el taller): usar allowlist
-// const ALLOWED_CMDS = new Set(['uptime', 'date', 'hostname']);
+// Comandos permitidos (cuando CMDi está parcheado)
+const ALLOWED_CMDS = new Set(['uptime', 'date', 'hostname', 'whoami', 'ls']);
 
 router.get('/', (req: Request, res: Response) => {
   const cmd = req.query.cmd as string | undefined;
 
-  // ⚠️ VERSIÓN VULNERABLE — Command Injection directo
   if (cmd) {
-    try {
-      const output = execSync(cmd, { timeout: 5000, maxBuffer: 1024 * 512 }).toString();
-      res.json({ output });
-      return;
-    } catch (e: any) {
-      // Devuelve stderr también (útil para el alumno)
-      const stderr = e.stderr ? e.stderr.toString() : '';
-      const stdout = e.stdout ? e.stdout.toString() : '';
-      res.status(500).json({ error: e.message, stderr, stdout });
-      return;
+    if (vulns.CMDI) {
+      // ⚠️ VULNERABLE: Command Injection directo
+      try {
+        const output = execSync(cmd, { timeout: 5000, maxBuffer: 1024 * 512 }).toString();
+        res.json({ output });
+        return;
+      } catch (e: any) {
+        const stderr = e.stderr ? e.stderr.toString() : '';
+        const stdout = e.stdout ? e.stdout.toString() : '';
+        res.status(500).json({ error: e.message, stderr, stdout });
+        return;
+      }
+    } else {
+      // ✅ PARCHEADO: solo comandos de la allowlist
+      if (!ALLOWED_CMDS.has(cmd)) {
+        res.status(400).json({ error: 'Comando no permitido' });
+        return;
+      }
+      try {
+        const output = execSync(cmd, { timeout: 5000 }).toString();
+        res.json({ output });
+        return;
+      } catch (e: any) {
+        res.status(500).json({ error: e.message });
+        return;
+      }
     }
   }
 
-  // FIX T06 (para referencia del alumno):
-  // if (cmd) {
-  //   if (!ALLOWED_CMDS.has(cmd)) {
-  //     res.status(400).json({ error: `Comando no permitido` });
-  //     return;
-  //   }
-  //   execFile(cmd, [], (err, stdout) => {
-  //     if (err) return res.status(500).json({ error: err.message });
-  //     res.json({ output: stdout });
-  //   });
-  //   return;
-  // }
-
-  // ⚠️ VULNERABILIDAD T06: expone variables de entorno (puede incluir secretos)
-  // FIX T06: eliminar este endpoint o nunca exponer process.env
-  res.json({
-    message: 'Endpoint de debug',
-    // ⚠️ Expone process.env — puede revelar JWT_SECRET, DB credentials, etc.
-    env: process.env,
-    nodeVersion: process.version,
-    uptime: process.uptime(),
-  });
+  // Info de debug: expone env solo si SECRETS está habilitado
+  if (vulns.SECRETS) {
+    res.json({
+      message: 'Endpoint de debug',
+      env: process.env,
+      nodeVersion: process.version,
+      uptime: process.uptime(),
+    });
+  } else {
+    res.json({
+      message: 'Endpoint de debug',
+      nodeVersion: process.version,
+      uptime: process.uptime(),
+    });
+  }
 });
 
 export default router;

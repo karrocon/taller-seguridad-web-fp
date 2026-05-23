@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/database';
 import { AuthRequest, requireAuth } from '../middleware/auth';
+import { vulns } from '../config/vulns';
 
 const router = Router();
 
@@ -45,7 +46,6 @@ router.post('/', requireAuth as any, (req: AuthRequest, res: Response) => {
   }
 
   const db = getDb();
-  // ⚠️ VULNERABILIDAD T05: description e image_url no se sanitizan → XSS
   const result = db.prepare(
     'INSERT INTO products (name, description, image_url, price, owner_id) VALUES (?, ?, ?, ?, ?)'
   ).run(name, description, image_url, price, req.user!.userId);
@@ -54,8 +54,6 @@ router.post('/', requireAuth as any, (req: AuthRequest, res: Response) => {
 });
 
 // PUT /products/:id — editar un coche
-// ⚠️ VULNERABILIDAD T08: IDOR — cualquier usuario autenticado puede editar cualquier producto
-// FIX: verificar que owner_id === req.user.userId o role === 'admin'
 router.put('/:id', requireAuth as any, (req: AuthRequest, res: Response) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: 'ID inválido' }); return; }
@@ -65,10 +63,17 @@ router.put('/:id', requireAuth as any, (req: AuthRequest, res: Response) => {
   };
 
   const db = getDb();
-  const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+  const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(id) as any;
   if (!existing) { res.status(404).json({ error: 'Producto no encontrado' }); return; }
 
-  // ⚠️ No se verifica que el usuario sea el propietario
+  // Si IDOR parcheado: verificar ownership
+  if (!vulns.IDOR) {
+    if (existing.owner_id !== req.user!.userId && req.user!.role !== 'admin') {
+      res.status(403).json({ error: 'Solo puedes editar tus propios productos' });
+      return;
+    }
+  }
+
   db.prepare(`
     UPDATE products SET
       name = COALESCE(?, name),
@@ -81,14 +86,19 @@ router.put('/:id', requireAuth as any, (req: AuthRequest, res: Response) => {
   res.json({ message: 'Producto actualizado' });
 });
 
-// DELETE /products/:id — solo admin
-// ⚠️ VULNERABILIDAD T08: el check de admin se hace solo en frontend, no en backend
+// DELETE /products/:id
 router.delete('/:id', requireAuth as any, (req: AuthRequest, res: Response) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: 'ID inválido' }); return; }
 
-  // ⚠️ VULNERABILIDAD: no se verifica role === 'admin' aquí
-  // FIX: if (req.user!.role !== 'admin') return res.status(403).json(...)
+  // Si IDOR parcheado: solo admin puede borrar
+  if (!vulns.IDOR) {
+    if (req.user!.role !== 'admin') {
+      res.status(403).json({ error: 'Solo administradores pueden eliminar productos' });
+      return;
+    }
+  }
+
   const db = getDb();
   db.prepare('DELETE FROM products WHERE id = ?').run(id);
   res.json({ message: 'Producto eliminado' });

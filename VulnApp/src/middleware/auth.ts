@@ -1,9 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { vulns } from '../config/vulns';
 
-// ⚠️ VULNERABILIDAD T07: clave JWT hardcodeada y débil
-// FIX T07: mover a process.env.JWT_SECRET
-const JWT_SECRET = 'secret';
+// JWT secret: débil si VULN_JWT_WEAK, fuerte si parcheado
+const JWT_SECRET = vulns.JWT_WEAK
+  ? 'secret'
+  : (process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex'));
 
 export interface AuthRequest extends Request {
   user?: { userId: number; username: string; role: string };
@@ -20,9 +23,10 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
   const token = authHeader.slice(7);
 
   try {
-    // ⚠️ VULNERABILIDAD T07: no se especifica algorithms → acepta alg:none
-    // FIX T07: jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] })
-    const payload = jwt.verify(token, JWT_SECRET) as {
+    // Si JWT_WEAK: no restringe algoritmo → acepta alg:none
+    // Si parcheado: solo acepta HS256
+    const verifyOptions = vulns.JWT_WEAK ? {} : { algorithms: ['HS256'] as jwt.Algorithm[] };
+    const payload = jwt.verify(token, JWT_SECRET, verifyOptions) as {
       userId: number;
       username: string;
       role: string;

