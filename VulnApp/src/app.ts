@@ -17,9 +17,9 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS: permisivo si VULN_CSRF, restrictivo si parcheado
+// CORS: permisivo si VULN_CORS, restrictivo si parcheado
 app.use((_req, res, next) => {
-  if (vulns.CSRF) {
+  if (vulns.CORS) {
     // ⚠️ VULNERABLE: acepta cualquier origen → permite CSRF desde sitios maliciosos
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');

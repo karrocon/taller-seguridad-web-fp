@@ -10,7 +10,7 @@
  *   VULN_CMDI=0        → debug endpoint: solo allowlist (seguro)
  *   VULN_IDOR=0        → se verifica ownership (seguro)
  *   VULN_JWT_WEAK=0    → JWT usa secreto fuerte + algorithms (seguro)
- *   VULN_CSRF=0        → CORS restrictivo (seguro)
+ *   VULN_CORS=0        → CORS restrictivo (seguro)
  *   VULN_PLAINTEXT=0   → passwords se hashean (seguro)
  *   VULN_SECRETS=0     → /debug no expone process.env (seguro)
  *   VULN_HEADERS=0     → se envían CSP, HSTS, X-Frame-Options, etc. (seguro)
@@ -21,9 +21,9 @@
  * Atajo por día del taller:
  *   VULN_DAY=2  → habilita SQLi + XSS
  *   VULN_DAY=3  → habilita CMDi + JWT + PathTraversal
- *   VULN_DAY=4  → habilita IDOR + CSRF + Cookies
+ *   VULN_DAY=4  → habilita IDOR + Cookies
  *   VULN_DAY=5  → habilita PLAINTEXT + SECRETS
- *   VULN_DAY=6  → habilita HEADERS + SSRF
+ *   VULN_DAY=6  → habilita HEADERS + SSRF + CORS
  *   (sin VULN_DAY o VULN_DAY=all → todo habilitado)
  */
 
@@ -61,8 +61,8 @@ export const vulns = {
   /** Día 4: IDOR en /users/:id y /products/:id (PUT/DELETE) */
   IDOR: isEnabled('VULN_IDOR', dayDefault([4])),
 
-  /** Día 4: Sin protección CSRF (CORS *) */
-  CSRF: isEnabled('VULN_CSRF', dayDefault([4])),
+  /** Día 6: CORS permisivo (Access-Control-Allow-Origin: *) → permite CSRF */
+  CORS: isEnabled('VULN_CORS', dayDefault([6])),
 
   /** Día 4: Cookies sin flags de seguridad (HttpOnly, Secure, SameSite) */
   COOKIES: isEnabled('VULN_COOKIES', dayDefault([4])),
